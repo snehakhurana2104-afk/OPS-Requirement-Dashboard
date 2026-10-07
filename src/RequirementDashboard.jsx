@@ -60,16 +60,8 @@ const COLUMNS = [
   { key: "followUp1", label: "Follow Up 1", className: "col-followup" },
   { key: "followUp2", label: "Follow Up 2", className: "col-followup" },
   { key: "followUp3", label: "Follow Up 3", className: "col-followup" },
-];
-
-/* =========================================================
-   FOLLOW UP CONFIG
-========================================================= */
-
-const FOLLOW_UP_CONFIG = [
-  { number: 1, days: 2, label: "Follow Up 1" },
-  { number: 2, days: 4, label: "Follow Up 2" },
-  { number: 3, days: 6, label: "Follow Up 3" },
+  { key: "followUp4", label: "Follow Up 4", className: "col-followup" },
+  { key: "followUp5", label: "Follow Up 5", className: "col-followup" },
 ];
 
 /* =========================================================
@@ -82,7 +74,7 @@ const REQUIREMENT_STATUSES = ["Served", "Regret"];
 const EVALUATION_STATUSES = ["Yes", "No"];
 
 /* =========================================================
-   DATE HELPERS
+   DATE / TIME HELPERS
 ========================================================= */
 
 const parseExcelDate = (value) => {
@@ -276,78 +268,191 @@ const formatTime12Hour = (value) => {
   return text;
 };
 
-/* Converts any supported time value to HH:mm for <input type="time"> */
-const formatTimeForInput = (value) => {
-  if (!value) return "";
+/* =========================================================
+   FOLLOW-UP CONFIGURATION
+========================================================= */
 
-  const text = String(value).trim();
+/*
+  Default schedule:
+    Follow-Up 1 = original requirement date + 2 days
+    Follow-Up 2 = Follow-Up 1 + 2 days
+    Follow-Up 3 = Follow-Up 2 + 5 days
+    Follow-Up 4 = Follow-Up 3 + 5 days
+    Follow-Up 5 = Follow-Up 4 + 5 days
 
-  let match = text.match(
-    /^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i
+  Special Requirement Name schedule:
+    If Requirement Name contains HCL, EXL, BNP, LTM or UCB:
+    Follow-Up 1 = original requirement date + 3 days
+    Follow-Up 2 = Follow-Up 1 + 4 days
+    Follow-Up 3 = Follow-Up 2 + 4 days
+    Follow-Up 4 = Follow-Up 3 + 4 days
+    Follow-Up 5 = Follow-Up 4 + 4 days
+
+  IMPORTANT:
+    Every follow-up is calculated from the PREVIOUS follow-up's
+    actual date. If that calculated date is Saturday/Sunday,
+    it is moved to the next working day before the next
+    follow-up is calculated.
+*/
+
+const FOLLOW_UP_CONFIG = [
+  {
+    number: 1,
+    label: "Follow Up 1",
+    defaultGapDays: 2,
+    specialGapDays: 3,
+  },
+  {
+    number: 2,
+    label: "Follow Up 2",
+    defaultGapDays: 2,
+    specialGapDays: 4,
+  },
+  {
+    number: 3,
+    label: "Follow Up 3",
+    defaultGapDays: 5,
+    specialGapDays: 4,
+  },
+  {
+    number: 4,
+    label: "Follow Up 4",
+    defaultGapDays: 5,
+    specialGapDays: 4,
+  },
+  {
+    number: 5,
+    label: "Follow Up 5",
+    defaultGapDays: 5,
+    specialGapDays: 4,
+  },
+];
+
+const SPECIAL_REQUIREMENT_KEYWORDS = [
+  "HCL",
+  "EXL",
+  "BNP",
+  "LTM",
+  "UCB",
+];
+
+/*
+  Matches the keyword as a word, so for example:
+    "HCL Training"      -> special
+    "BNP Project"       -> special
+    "LTM-UCB Program"   -> special
+  Matching is case-insensitive.
+*/
+const isSpecialRequirement = (requirementName) => {
+  const text = String(requirementName || "").trim();
+
+  if (!text) return false;
+
+  return SPECIAL_REQUIREMENT_KEYWORDS.some((keyword) =>
+    new RegExp(`\\b${keyword}\\b`, "i").test(text)
   );
-
-  if (match) {
-    let hour = parseInt(match[1], 10);
-    const minute = match[2];
-    const period = match[3].toUpperCase();
-
-    if (hour >= 1 && hour <= 12) {
-      if (period === "PM" && hour !== 12) hour += 12;
-      if (period === "AM" && hour === 12) hour = 0;
-      return `${String(hour).padStart(2, "0")}:${minute}`;
-    }
-  }
-
-  match = text.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
-
-  if (match) {
-    const hour = parseInt(match[1], 10);
-    const minute = match[2];
-
-    if (hour >= 0 && hour <= 23) {
-      return `${String(hour).padStart(2, "0")}:${minute}`;
-    }
-  }
-
-  const numericValue = Number(value);
-
-  if (
-    Number.isFinite(numericValue) &&
-    numericValue >= 0 &&
-    numericValue < 1
-  ) {
-    const totalMinutes = Math.round(numericValue * 24 * 60);
-    const hour = Math.floor(totalMinutes / 60) % 24;
-    const minute = totalMinutes % 60;
-
-    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(
-      2,
-      "0"
-    )}`;
-  }
-
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return `${String(value.getHours()).padStart(2, "0")}:${String(
-      value.getMinutes()
-    ).padStart(2, "0")}`;
-  }
-
-  return "";
 };
 
-const getFollowUpDateObject = (value, days) => {
-  const date = parseExcelDate(value);
+const isWeekend = (date) => {
+  if (!date) return false;
+
+  const day = date.getDay();
+  return day === 0 || day === 6;
+};
+
+const moveToNextWorkingDay = (date) => {
   if (!date) return null;
 
   const result = new Date(date);
   result.setHours(0, 0, 0, 0);
-  result.setDate(result.getDate() + days);
+
+  while (isWeekend(result)) {
+    result.setDate(result.getDate() + 1);
+  }
 
   return result;
 };
 
-const getFollowUpDate = (value, days) => {
-  const date = getFollowUpDateObject(value, days);
+/*
+  Build the complete schedule sequentially.
+
+  Example for a SPECIAL requirement:
+    Base date = 1st
+    F1 = 1st + 3 days
+    F2 = F1 + 4 days
+    F3 = F2 + 4 days
+    F4 = F3 + 4 days
+    F5 = F4 + 4 days
+
+  If any result lands on Saturday/Sunday, that result is first
+  moved to Monday (or the next working day), and THAT shifted
+  date becomes the starting point for the next follow-up.
+*/
+const getWorkingDayFollowUpSchedule = (
+  value,
+  requirementName = ""
+) => {
+  const baseDate = parseExcelDate(value);
+
+  if (!baseDate) return {};
+
+  const special = isSpecialRequirement(requirementName);
+
+  let previousFollowUpDate = new Date(baseDate);
+  previousFollowUpDate.setHours(0, 0, 0, 0);
+
+  const schedule = {};
+
+  FOLLOW_UP_CONFIG.forEach((config) => {
+    const gapDays = special
+      ? config.specialGapDays
+      : config.defaultGapDays;
+
+    const calculatedDate = new Date(
+      previousFollowUpDate
+    );
+
+    calculatedDate.setDate(
+      calculatedDate.getDate() + gapDays
+    );
+
+    const actualWorkingDate =
+      moveToNextWorkingDay(calculatedDate);
+
+    schedule[config.number] = actualWorkingDate;
+
+    // IMPORTANT: next follow-up starts from the
+    // actual shifted working date.
+    previousFollowUpDate = actualWorkingDate;
+  });
+
+  return schedule;
+};
+
+const getFollowUpDateObject = (
+  value,
+  followUpNumber,
+  requirementName = ""
+) => {
+  const schedule = getWorkingDayFollowUpSchedule(
+    value,
+    requirementName
+  );
+
+  return schedule[followUpNumber] || null;
+};
+
+const getFollowUpDate = (
+  value,
+  followUpNumber,
+  requirementName = ""
+) => {
+  const date = getFollowUpDateObject(
+    value,
+    followUpNumber,
+    requirementName
+  );
+
   if (!date) return "—";
 
   return formatDateDDMMYYYY(date);
@@ -375,6 +480,73 @@ const formatDateForInput = (value) => {
     String(date.getMonth() + 1).padStart(2, "0"),
     String(date.getDate()).padStart(2, "0"),
   ].join("-");
+};
+
+const formatTimeForInput = (value) => {
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return "";
+  }
+
+  /* Excel can store time as a fraction of a day, e.g. 0.5 = 12:00. */
+  if (typeof value === "number" && value >= 0 && value < 1) {
+    const totalMinutes = Math.round(value * 24 * 60);
+    const hours = Math.floor(totalMinutes / 60) % 24;
+    const minutes = totalMinutes % 60;
+
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  }
+
+  const text = String(value).trim();
+
+  /* 12-hour format: 9:05 AM / 09:05 PM */
+  let match = text.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+
+  if (match) {
+    let hour = parseInt(match[1], 10);
+    const minute = parseInt(match[2], 10);
+    const period = match[3].toUpperCase();
+
+    if (hour >= 1 && hour <= 12 && minute >= 0 && minute <= 59) {
+      if (period === "AM" && hour === 12) hour = 0;
+      if (period === "PM" && hour !== 12) hour += 12;
+
+      return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    }
+  }
+
+  /* 24-hour format: 09:05 / 21:30 */
+  match = text.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+
+  if (match) {
+    const hour = parseInt(match[1], 10);
+    const minute = parseInt(match[2], 10);
+
+    if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+      return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    }
+  }
+
+  /* Excel may sometimes return a numeric string for the time fraction. */
+  if (/^0(?:\.\d+)?$/.test(text) || /^0?\.\d+$/.test(text)) {
+    const fraction = Number(text);
+
+    if (Number.isFinite(fraction) && fraction >= 0 && fraction < 1) {
+      const totalMinutes = Math.round(fraction * 24 * 60);
+      const hours = Math.floor(totalMinutes / 60) % 24;
+      const minutes = totalMinutes % 60;
+
+      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    }
+  }
+
+  /* Last fallback for values such as ISO datetime strings. */
+  const parsed = new Date(text);
+
+  if (!Number.isNaN(parsed.getTime())) {
+    return `${String(parsed.getHours()).padStart(2, "0")}:${String(parsed.getMinutes()).padStart(2, "0")}`;
+  }
+
+  return "";
 };
 
 /* =========================================================
@@ -427,8 +599,6 @@ export default function RequirementDashboard({
   ======================================================= */
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [evaluationFilter, setEvaluationFilter] = useState("All");
 
   /* =======================================================
      LOCAL REQUIREMENTS
@@ -500,7 +670,7 @@ export default function RequirementDashboard({
   const [followUpStatuses, setFollowUpStatuses] = useState(() => {
     try {
       return JSON.parse(
-        localStorage.getItem("opsFollowUpStatuses") || "{}"
+        localStorage.getItem("opsFollowUpDecisionsV2") || "{}"
       );
     } catch {
       return {};
@@ -508,17 +678,45 @@ export default function RequirementDashboard({
   });
 
   useEffect(() => {
-    const cleanupKey = "opsFollowUpStatusesCleanupV1";
+    const cleanupKey = "opsFollowUpDecisionsCleanupV2";
 
     try {
       if (localStorage.getItem(cleanupKey) !== "done") {
         localStorage.removeItem("opsFollowUpStatuses");
+        localStorage.removeItem("opsFollowUpDecisionsV2");
         localStorage.setItem(cleanupKey, "done");
         setFollowUpStatuses({});
       }
     } catch {
       setFollowUpStatuses({});
     }
+  }, []);
+
+  // Keep follow-up notifications/statuses in sync if the status changes
+  // from another browser tab/window using the same dashboard.
+  useEffect(() => {
+    const handleFollowUpStatusStorage = (event) => {
+      if (event.key !== "opsFollowUpDecisionsV2") return;
+
+      try {
+        setFollowUpStatuses(
+          event.newValue ? JSON.parse(event.newValue) : {}
+        );
+      } catch {
+        setFollowUpStatuses({});
+      }
+    };
+
+    window.addEventListener(
+      "storage",
+      handleFollowUpStatusStorage
+    );
+
+    return () =>
+      window.removeEventListener(
+        "storage",
+        handleFollowUpStatusStorage
+      );
   }, []);
 
   const getFollowUpStatusKey = (row, number) =>
@@ -538,7 +736,7 @@ export default function RequirementDashboard({
 
       try {
         localStorage.setItem(
-          "opsFollowUpStatuses",
+          "opsFollowUpDecisionsV2",
           JSON.stringify(updated)
         );
       } catch {}
@@ -631,14 +829,6 @@ export default function RequirementDashboard({
       return "Requirement Name is required.";
     }
 
-    if (!form.assignedOpsPerson) {
-      return "Please select Assigned OPS Person.";
-    }
-
-    if (!form.salesPerson) {
-      return "Please select Sales Person.";
-    }
-
     if (!form.clientName.trim()) {
       return "Client Name is required.";
     }
@@ -693,17 +883,32 @@ export default function RequirementDashboard({
 
     const followUp1 = getFollowUpDate(
       form.clientProposalSharedDate,
-      2
+      1,
+      form.requirementName
     );
 
     const followUp2 = getFollowUpDate(
       form.clientProposalSharedDate,
-      4
+      2,
+      form.requirementName
     );
 
     const followUp3 = getFollowUpDate(
       form.clientProposalSharedDate,
-      6
+      3,
+      form.requirementName
+    );
+
+    const followUp4 = getFollowUpDate(
+      form.clientProposalSharedDate,
+      4,
+      form.requirementName
+    );
+
+    const followUp5 = getFollowUpDate(
+      form.clientProposalSharedDate,
+      5,
+      form.requirementName
     );
 
     try {
@@ -745,6 +950,8 @@ export default function RequirementDashboard({
           followUp1,
           followUp2,
           followUp3,
+          followUp4,
+          followUp5,
         };
 
         const payload = {
@@ -772,6 +979,8 @@ export default function RequirementDashboard({
           followUp1: updatedRequirement.followUp1,
           followUp2: updatedRequirement.followUp2,
           followUp3: updatedRequirement.followUp3,
+          followUp4: updatedRequirement.followUp4,
+          followUp5: updatedRequirement.followUp5,
         };
 
         const response = await fetch(
@@ -861,6 +1070,8 @@ export default function RequirementDashboard({
         followUp1,
         followUp2,
         followUp3,
+        followUp4,
+        followUp5,
       };
 
       const payload = {
@@ -888,13 +1099,15 @@ export default function RequirementDashboard({
         followUp1: newRequirement.followUp1,
         followUp2: newRequirement.followUp2,
         followUp3: newRequirement.followUp3,
+        followUp4: newRequirement.followUp4,
+        followUp5: newRequirement.followUp5,
 
         taskTitle: `Task - ${newRequirement.requirementName}`,
 
         taskDescription: `Requirement: ${newRequirement.requirementName}
 Client: ${newRequirement.clientName}
-Assigned OPS: ${newRequirement.assignedOpsPerson}
-Sales Person: ${newRequirement.salesPerson}`,
+Assigned OPS: ${newRequirement.assignedOpsPerson || "Not Assigned"}
+Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
 
         dueDate: form.clientProposalSharedDate,
         taskStatus: "Pending",
@@ -1090,6 +1303,105 @@ Sales Person: ${newRequirement.salesPerson}`,
      AI COPILOT
   ======================================================= */
 
+  const buildLocalCopilotAnswer = (question) => {
+    const q = String(question || "").trim().toLowerCase();
+    const total = localRows.length;
+
+    const served = localRows.filter(
+      (row) => String(row.requirementStatus || "").toLowerCase() === "served"
+    ).length;
+
+    const regret = localRows.filter(
+      (row) => String(row.requirementStatus || "").toLowerCase() === "regret"
+    ).length;
+
+    const evaluationYes = localRows.filter(
+      (row) => String(row.evaluationCallStatus || "").toLowerCase() === "yes"
+    ).length;
+
+    const clients = new Set(
+      localRows
+        .map((row) => String(row.clientName || "").trim())
+        .filter(Boolean)
+    );
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dueToday = [];
+    const overdue = [];
+
+    localRows.forEach((row) => {
+      FOLLOW_UP_CONFIG.forEach((config) => {
+        const date = getFollowUpDateObject(
+          row.clientProposalSharedDate,
+          config.number,
+          row.requirementName
+        );
+
+        if (!date) return;
+
+        const status = getFollowUpStatus(row, config.number);
+        if (status === "Accepted") return;
+
+        const item = {
+          number: config.number,
+          date,
+          requirement: row.requirementName || "Requirement",
+          client: row.clientName || "—",
+          ops: row.assignedOpsPerson || "—",
+        };
+
+        const time = date.getTime();
+        if (time === today.getTime()) dueToday.push(item);
+        if (time < today.getTime()) overdue.push(item);
+      });
+    });
+
+    if (q.includes("total") && (q.includes("requirement") || q.includes("kitni"))) {
+      return `Total requirements: ${total}. Served: ${served}. Regret: ${regret}.`;
+    }
+
+    if (q.includes("served") || q.includes("regret")) {
+      return `Served: ${served} | Regret: ${regret} | Total: ${total}.`;
+    }
+
+    if (q.includes("evaluation")) {
+      return `Evaluation calls marked Yes: ${evaluationYes}.`;
+    }
+
+    if (q.includes("client")) {
+      if (!clients.size) return "No client names are available in the loaded requirements.";
+      return `Total unique clients: ${clients.size}. Clients: ${Array.from(clients).join(", ")}.`;
+    }
+
+    if (q.includes("follow") || q.includes("aaj")) {
+      if (dueToday.length === 0 && overdue.length === 0) {
+        return "There are no pending follow-ups due today or overdue.";
+      }
+
+      const todayText = dueToday.length
+        ? `Today (${dueToday.length}): ${dueToday
+            .map((item) => `F${item.number} - ${item.requirement} (${item.client})`)
+            .join("; ")}`
+        : "Today: none";
+
+      const overdueText = overdue.length
+        ? `Overdue (${overdue.length}): ${overdue
+            .map((item) => `F${item.number} - ${item.requirement} (${item.client})`)
+            .join("; ")}`
+        : "Overdue: none";
+
+      return `${todayText}. ${overdueText}.`;
+    }
+
+    if (q.includes("summary") || q.includes("important") || q.includes("task")) {
+      return `Dashboard summary: ${total} requirements, ${served} Served, ${regret} Regret, ${evaluationYes} evaluation calls marked Yes, and ${clients.size} unique clients. Pending follow-ups due today: ${dueToday.length}; overdue: ${overdue.length}.`;
+    }
+
+    return `I can help with your live dashboard. Current data: ${total} requirements, ${served} Served, ${regret} Regret, ${evaluationYes} evaluation calls, and ${clients.size} unique clients. Try asking about requirements, follow-ups, clients, evaluation calls, or today's summary.`;
+  };
+
   const askCopilot = async (
     question = copilotQuestion
   ) => {
@@ -1102,46 +1414,50 @@ Sales Person: ${newRequirement.salesPerson}`,
     setCopilotAnswer("");
 
     try {
-      const response = await fetch(
-        `${apiBaseUrl}/copilot`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            question: text,
-          }),
-        }
-      );
-
-      let data = {};
+      let answer = "";
 
       try {
-        data = await response.json();
-      } catch {
-        data = {};
-      }
+        const response = await fetch(
+          `${apiBaseUrl}/copilot`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            body: JSON.stringify({
+              question: text,
+            }),
+          }
+        );
 
-      if (!response.ok) {
-        throw new Error(
-          data?.error ||
+        let data = {};
+
+        try {
+          data = await response.json();
+        } catch {
+          data = {};
+        }
+
+        if (response.ok) {
+          answer =
+            data?.answer ||
+            data?.response ||
             data?.message ||
-            `AI Copilot request failed (${response.status})`
+            data?.result ||
+            "";
+        }
+      } catch (backendError) {
+        console.warn(
+          "AI Copilot backend unavailable. Using live dashboard fallback.",
+          backendError
         );
       }
 
-      const answer =
-        data?.answer ||
-        data?.response ||
-        data?.message ||
-        data?.result ||
-        "";
-
+      // The dashboard remains usable even if the backend /copilot route
+      // is missing, offline, or returns an error.
       if (!answer) {
-        throw new Error(
-          "AI Copilot returned an empty response."
-        );
+        answer = buildLocalCopilotAnswer(text);
       }
 
       setCopilotAnswer(String(answer));
@@ -1154,7 +1470,7 @@ Sales Person: ${newRequirement.salesPerson}`,
 
       setCopilotError(
         error?.message ||
-          "Unable to connect with AI Copilot."
+          "Unable to generate an AI Copilot answer."
       );
     } finally {
       setCopilotLoading(false);
@@ -1177,94 +1493,54 @@ Sales Person: ${newRequirement.salesPerson}`,
   const filteredRows = useMemo(() => {
     const searchValue = search.trim().toLowerCase();
 
-    return localRows.filter((row) => {
-      const status = String(
-        row.requirementStatus || ""
-      ).toLowerCase();
+    if (!searchValue) {
+      return localRows;
+    }
 
-      const evaluation = String(
-        row.evaluationCallStatus || ""
-      ).toLowerCase();
-
-      const matchesSearch =
-        !searchValue ||
-        COLUMNS.some((column) => {
-          if (
-            column.key ===
-            "clientProposalSharedDate"
-          ) {
-            return formatDateDDMMYYYY(
-              row.clientProposalSharedDate
-            )
-              .toLowerCase()
-              .includes(searchValue);
-          }
-
-          if (
-            column.key ===
-            "clientProposalSharedTime"
-          ) {
-            return formatTime12Hour(
-              row.clientProposalSharedTime
-            )
-              .toLowerCase()
-              .includes(searchValue);
-          }
-
-          if (column.key === "followUp1") {
-            return getFollowUpDate(
-              row.clientProposalSharedDate,
-              2
-            )
-              .toLowerCase()
-              .includes(searchValue);
-          }
-
-          if (column.key === "followUp2") {
-            return getFollowUpDate(
-              row.clientProposalSharedDate,
-              4
-            )
-              .toLowerCase()
-              .includes(searchValue);
-          }
-
-          if (column.key === "followUp3") {
-            return getFollowUpDate(
-              row.clientProposalSharedDate,
-              6
-            )
-              .toLowerCase()
-              .includes(searchValue);
-          }
-
-          return String(
-            row[column.key] ?? ""
+    return localRows.filter((row) =>
+      COLUMNS.some((column) => {
+        if (column.key === "clientProposalSharedDate") {
+          return formatDateDDMMYYYY(
+            row.clientProposalSharedDate
           )
             .toLowerCase()
             .includes(searchValue);
-        });
+        }
 
-      const matchesStatus =
-        statusFilter === "All" ||
-        status === statusFilter.toLowerCase();
+        if (column.key === "clientProposalSharedTime") {
+          return formatTime12Hour(
+            row.clientProposalSharedTime
+          )
+            .toLowerCase()
+            .includes(searchValue);
+        }
 
-      const matchesEvaluation =
-        evaluationFilter === "All" ||
-        evaluation === evaluationFilter.toLowerCase();
+        if (
+          column.key === "followUp1" ||
+          column.key === "followUp2" ||
+          column.key === "followUp3" ||
+          column.key === "followUp4" ||
+          column.key === "followUp5"
+        ) {
+          const followUpNumber = Number(
+            column.key.replace("followUp", "")
+          );
 
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesEvaluation
-      );
-    });
-  }, [
-    localRows,
-    search,
-    statusFilter,
-    evaluationFilter,
-  ]);
+          return getFollowUpDate(
+            row.clientProposalSharedDate,
+            followUpNumber,
+            row.requirementName
+          )
+            .toLowerCase()
+            .includes(searchValue);
+        }
+
+        return String(row[column.key] ?? "")
+          .toLowerCase()
+          .includes(searchValue);
+      })
+    );
+  }, [localRows, search]);
 
   /* =======================================================
      STATS
@@ -1292,20 +1568,14 @@ Sales Person: ${newRequirement.salesPerson}`,
         ).toLowerCase() === "yes"
     ).length;
 
-    const followUps = localRows.filter(
-      (row) =>
+    const followUps = localRows.filter((row) =>
+      FOLLOW_UP_CONFIG.some((config) =>
         getFollowUpDateObject(
           row.clientProposalSharedDate,
-          2
-        ) ||
-        getFollowUpDateObject(
-          row.clientProposalSharedDate,
-          4
-        ) ||
-        getFollowUpDateObject(
-          row.clientProposalSharedDate,
-          6
+          config.number,
+          row.requirementName
         )
+      )
     ).length;
 
     const clients = new Set(
@@ -1339,7 +1609,8 @@ Sales Person: ${newRequirement.salesPerson}`,
       FOLLOW_UP_CONFIG.forEach((config) => {
         const date = getFollowUpDateObject(
           row.clientProposalSharedDate,
-          config.days
+          config.number,
+          row.requirementName
         );
 
         if (!date) return;
@@ -1352,7 +1623,8 @@ Sales Person: ${newRequirement.salesPerson}`,
           date,
           dateText: getFollowUpDate(
             row.clientProposalSharedDate,
-            config.days
+            config.number,
+            row.requirementName
           ),
           status: getFollowUpStatus(
             row,
@@ -1372,29 +1644,44 @@ Sales Person: ${newRequirement.salesPerson}`,
     followUpStatuses,
   ]);
 
+  /*
+     FOLLOW-UP NOTIFICATION RULES
+
+     - Notification dates come directly from the same working-day
+       schedule used by the table.
+     - Weekend dates can never be generated because the schedule
+       moves them to the next working day.
+     - A notification appears on its due date and remains visible
+       on every later day until that exact follow-up is accepted.
+     - "Declined" is still pending, so it also remains visible.
+     - Updating the follow-up status updates this list immediately
+       because followUpStatuses is part of the memo dependency.
+  */
   const notifications = useMemo(() => {
-    const todayKey = getTodayKey();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    return allFollowUpNotifications.filter(
-      (item) => {
-        if (
-          getDateKey(item.date) !==
-          todayKey
-        ) {
-          return false;
-        }
-
-        if (
-          item.status === "Completed" ||
-          item.status === "Not Completed"
-        ) {
-          return false;
-        }
-
-        return true;
+    return allFollowUpNotifications.filter((item) => {
+      // Accepted follow-ups are removed immediately.
+      if (item.status === "Accepted") {
+        return false;
       }
-    );
+
+      // Future follow-ups are not notifications yet.
+      if (item.date.getTime() > today.getTime()) {
+        return false;
+      }
+
+      // Due today or overdue pending follow-ups stay visible
+      // until the corresponding follow-up is accepted.
+      return true;
+    });
   }, [allFollowUpNotifications]);
+
+  const isTodayWeekend = (() => {
+    const day = new Date().getDay();
+    return day === 0 || day === 6;
+  })();
 
   /* =======================================================
      BADGES
@@ -1462,21 +1749,13 @@ Sales Person: ${newRequirement.salesPerson}`,
     if (
       column.key === "followUp1" ||
       column.key === "followUp2" ||
-      column.key === "followUp3"
+      column.key === "followUp3" ||
+      column.key === "followUp4" ||
+      column.key === "followUp5"
     ) {
-      const number =
-        column.key === "followUp1"
-          ? 1
-          : column.key === "followUp2"
-          ? 2
-          : 3;
-
-      const days =
-        number === 1
-          ? 2
-          : number === 2
-          ? 4
-          : 6;
+      const number = Number(
+        column.key.replace("followUp", "")
+      );
 
       const status = getFollowUpStatus(
         row,
@@ -1491,21 +1770,22 @@ Sales Person: ${newRequirement.salesPerson}`,
           <div className="followup-date">
             {getFollowUpDate(
               row.clientProposalSharedDate,
-              days
+              number,
+              row.requirementName
             )}
           </div>
 
           {status && (
             <div
-              className={`followup-completion-status ${
-                status === "Completed"
-                  ? "completed"
-                  : "not-completed"
+              className={`followup-decision-status ${
+                status === "Accepted"
+                  ? "accepted"
+                  : "declined"
               }`}
             >
-              {status === "Completed"
-                ? "✓ Completed"
-                : "× Not Completed"}
+              {status === "Accepted"
+                ? "✓ Accepted"
+                : "× Declined"}
             </div>
           )}
         </td>
@@ -1612,7 +1892,7 @@ Sales Person: ${newRequirement.salesPerson}`,
             <button
               type="button"
               className="notification-button"
-              title="Today's Follow Up Notifications"
+              title="Pending Follow Up Notifications"
               onClick={() =>
                 setNotificationOpen(
                   (previous) => !previous
@@ -1635,12 +1915,19 @@ Sales Person: ${newRequirement.salesPerson}`,
                 <div className="notification-header">
                   <div>
                     <h3>
-                      Today's Follow Ups
+                      Pending Follow Ups
                     </h3>
 
                     <span>
                       {getTodayText()}
                     </span>
+
+                    {isTodayWeekend && (
+                      <div className="notification-weekend-note">
+                        Weekend par new follow-up notifications generate nahi honge.
+                        Pending notifications Accept hone tak visible rahengi.
+                      </div>
+                    )}
                   </div>
 
                   <button
@@ -1662,13 +1949,12 @@ Sales Person: ${newRequirement.salesPerson}`,
                       </div>
 
                       <strong>
-                        No follow-ups for today
+                        No pending follow-ups
                       </strong>
 
                       <span>
-                        Today's follow-up
-                        notifications will
-                        appear here automatically.
+                        New follow-up notifications are generated on weekdays.
+                        A pending notification stays visible until it is accepted.
                       </span>
                     </div>
                   ) : (
@@ -1732,10 +2018,20 @@ Sales Person: ${newRequirement.salesPerson}`,
                               </div>
                             </div>
 
-                            <div className="notification-date today">
+                            <div
+                              className={`notification-date ${
+                                getDateKey(notification.date) ===
+                                getTodayKey()
+                                  ? "today"
+                                  : "overdue"
+                              }`}
+                            >
                               🔔 Follow-up Due:{" "}
+                              {notification.dateText}
                               {
-                                notification.dateText
+                                getDateKey(notification.date) !==
+                                  getTodayKey() &&
+                                " • Pending"
                               }
                             </div>
 
@@ -1747,7 +2043,7 @@ Sales Person: ${newRequirement.salesPerson}`,
                                   updateFollowUpStatus(
                                     row,
                                     notification.followUpNumber,
-                                    "Completed"
+                                    "Accepted"
                                   )
                                 }
                               >
@@ -1761,7 +2057,7 @@ Sales Person: ${newRequirement.salesPerson}`,
                                   updateFollowUpStatus(
                                     row,
                                     notification.followUpNumber,
-                                    "Not Completed"
+                                    "Declined"
                                   )
                                 }
                               >
@@ -1971,15 +2267,6 @@ Sales Person: ${newRequirement.salesPerson}`,
             </div>
           </div>
 
-          <div className="stat-card red">
-            <div className="stat-icon">!</div>
-
-            <div>
-              <span>Regret</span>
-              <strong>{stats.regret}</strong>
-            </div>
-          </div>
-
           <div className="stat-card orange">
             <div className="stat-icon">↗</div>
 
@@ -2022,49 +2309,6 @@ Sales Person: ${newRequirement.salesPerson}`,
               </p>
             </div>
 
-            <div className="filters">
-              <select
-                value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(
-                    e.target.value
-                  )
-                }
-              >
-                <option value="All">
-                  All Status
-                </option>
-
-                <option value="Served">
-                  Served
-                </option>
-
-                <option value="Regret">
-                  Regret
-                </option>
-              </select>
-
-              <select
-                value={evaluationFilter}
-                onChange={(e) =>
-                  setEvaluationFilter(
-                    e.target.value
-                  )
-                }
-              >
-                <option value="All">
-                  All Evaluation
-                </option>
-
-                <option value="Yes">
-                  Yes
-                </option>
-
-                <option value="No">
-                  No
-                </option>
-              </select>
-            </div>
           </div>
 
           <div className="table-wrapper">
@@ -2080,7 +2324,7 @@ Sales Person: ${newRequirement.salesPerson}`,
                     </th>
                   ))}
 
-                  {/* ACTIONS AFTER FOLLOW UP 3 */}
+                  {/* ACTIONS AFTER FOLLOW UP 5 */}
                   <th className="col-actions">
                     Actions
                   </th>
@@ -2591,38 +2835,18 @@ Sales Person: ${newRequirement.salesPerson}`,
                   </div>
 
                   <div className="followup-preview-grid">
-                    <div>
-                      <span>Follow Up 1</span>
-
-                      <strong>
-                        {getFollowUpDate(
-                          requirementForm.clientProposalSharedDate,
-                          2
-                        )}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span>Follow Up 2</span>
-
-                      <strong>
-                        {getFollowUpDate(
-                          requirementForm.clientProposalSharedDate,
-                          4
-                        )}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span>Follow Up 3</span>
-
-                      <strong>
-                        {getFollowUpDate(
-                          requirementForm.clientProposalSharedDate,
-                          6
-                        )}
-                      </strong>
-                    </div>
+                    {[1, 2, 3, 4, 5].map((number) => (
+                      <div key={number}>
+                        <span>Follow Up {number}</span>
+                        <strong>
+                          {getFollowUpDate(
+                            requirementForm.clientProposalSharedDate,
+                            number,
+                            requirementForm.requirementName
+                          )}
+                        </strong>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
