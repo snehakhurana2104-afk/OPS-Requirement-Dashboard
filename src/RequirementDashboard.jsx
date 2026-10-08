@@ -620,6 +620,7 @@ export default function RequirementDashboard({
   ======================================================= */
 
   const [search, setSearch] = useState("");
+  const [opsFilter, setOpsFilter] = useState("All");
 
   /* =======================================================
      LOCAL REQUIREMENTS
@@ -1434,15 +1435,41 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
      SEARCH
   ======================================================= */
 
+  const availableOpsPersons = useMemo(() => {
+    const names = [
+      ...OPS_PERSONS,
+      ...localRows
+        .map((row) => String(row.assignedOpsPerson || "").trim())
+        .filter(Boolean),
+    ];
+
+    return Array.from(new Set(names)).sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }, [localRows]);
+
+  const clearDashboardFilters = () => {
+    setSearch("");
+    setOpsFilter("All");
+  };
+
   const filteredRows = useMemo(() => {
     const searchValue = search.trim().toLowerCase();
 
-    if (!searchValue) {
-      return localRows;
-    }
+    return localRows.filter((row) => {
+      /* Assigned OPS filter */
+      const matchesOps =
+        opsFilter === "All" ||
+        String(row.assignedOpsPerson || "")
+          .trim()
+          .toLowerCase() === opsFilter.toLowerCase();
 
-    return localRows.filter((row) =>
-      COLUMNS.some((column) => {
+      if (!matchesOps) return false;
+
+      /* Search filter */
+      if (!searchValue) return true;
+
+      return COLUMNS.some((column) => {
         if (column.key === "clientProposalSharedDate") {
           return formatDateDDMMYYYY(
             row.clientProposalSharedDate
@@ -1482,9 +1509,9 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
         return String(row[column.key] ?? "")
           .toLowerCase()
           .includes(searchValue);
-      })
-    );
-  }, [localRows, search]);
+      });
+    });
+  }, [localRows, search, opsFilter]);
 
   /* =======================================================
      STATS
@@ -1809,6 +1836,17 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
                 setSearch(e.target.value)
               }
             />
+
+            {search && (
+              <button
+                type="button"
+                className="search-clear-button"
+                title="Clear search"
+                onClick={() => setSearch("")}
+              >
+                ×
+              </button>
+            )}
           </div>
 
           {/* NOTIFICATION */}
@@ -1999,151 +2037,9 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
             )}
           </div>
 
-          {/* AI COPILOT */}
-
-          <div className="copilot-wrapper">
-            <button
-              type="button"
-              className="copilot-button"
-              onClick={() =>
-                setCopilotOpen(
-                  (previous) => !previous
-                )
-              }
-            >
-              ✨ AI Copilot
-            </button>
-
-            {copilotOpen && (
-              <div className="copilot-panel">
-                <div className="copilot-header">
-                  <div className="copilot-title">
-                    <div className="copilot-icon">
-                      ✨
-                    </div>
-
-                    <div>
-                      <h3>AI Copilot</h3>
-
-                      <span>
-                        Ask about your live requirements
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="copilot-close"
-                    onClick={() =>
-                      setCopilotOpen(false)
-                    }
-                  >
-                    ×
-                  </button>
-                </div>
-
-                <div className="copilot-questions">
-                  {quickQuestions.map(
-                    (question) => (
-                      <button
-                        key={question}
-                        type="button"
-                        onClick={() =>
-                          askCopilot(question)
-                        }
-                      >
-                        {question}
-                      </button>
-                    )
-                  )}
-                </div>
-
-                {copilotLoading && (
-                  <div className="copilot-loading">
-                    <div className="copilot-loader">
-                      ✨
-                    </div>
-
-                    <span>
-                      AI is analyzing your
-                      latest Excel requirement data...
-                    </span>
-                  </div>
-                )}
-
-                {copilotError && (
-                  <div className="copilot-error">
-                    <strong>
-                      Copilot Error
-                    </strong>
-
-                    <span>
-                      {copilotError}
-                    </span>
-                  </div>
-                )}
-
-                {copilotAnswer &&
-                  !copilotLoading && (
-                    <div className="copilot-answer">
-                      <div className="copilot-answer-title">
-                        ✨ AI Response
-                      </div>
-
-                      <div className="copilot-answer-text">
-                        {copilotAnswer}
-                      </div>
-                    </div>
-                  )}
-
-                <div className="copilot-input-area">
-                  <input
-                    type="text"
-                    placeholder="Ask something about requirements..."
-                    value={
-                      copilotQuestion
-                    }
-                    onChange={(e) =>
-                      setCopilotQuestion(
-                        e.target.value
-                      )
-                    }
-                    onKeyDown={(e) => {
-                      if (
-                        e.key === "Enter" &&
-                        !e.shiftKey
-                      ) {
-                        e.preventDefault();
-                        askCopilot();
-                      }
-                    }}
-                  />
-
-                  <button
-                    type="button"
-                    className="copilot-send"
-                    disabled={
-                      copilotLoading ||
-                      !copilotQuestion.trim()
-                    }
-                    onClick={() =>
-                      askCopilot()
-                    }
-                  >
-                    {copilotLoading
-                      ? "..."
-                      : "Ask"}
-                  </button>
-                </div>
-
-                <div className="copilot-footer">
-                  AI answers are based on the latest
-                  Excel requirement data.
-                </div>
-              </div>
-            )}
-          </div>
-
+  
+            
+          
           {/* CREATE TASK */}
 
           <button
@@ -2226,6 +2122,56 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
               </p>
             </div>
 
+            <div className="dashboard-filter-controls">
+              <div className="dashboard-filter-group">
+                <label htmlFor="assigned-ops-filter">
+                  Assigned OPS Person
+                </label>
+
+                <select
+                  id="assigned-ops-filter"
+                  value={opsFilter}
+                  onChange={(e) =>
+                    setOpsFilter(e.target.value)
+                  }
+                >
+                  <option value="All">All</option>
+
+                  {availableOpsPersons.map((person) => (
+                    <option key={person} value={person}>
+                      {person}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {(search || opsFilter !== "All") && (
+                <div className="dashboard-filter-actions">
+                  <button
+                    type="button"
+                    className="dashboard-clear-button"
+                    onClick={clearDashboardFilters}
+                  >
+                    Clear 
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="filter-result-summary">
+            <span>
+              Showing <strong>{filteredRows.length}</strong> of <strong>{localRows.length}</strong> requirements
+            </span>
+
+            <span>
+              {opsFilter === "All"
+                ? "All OPS Persons"
+                : `OPS: ${opsFilter}`}
+              {search.trim()
+                ? ` • Search: ${search.trim()}`
+                : ""}
+            </span>
           </div>
 
           <div className="table-wrapper">
