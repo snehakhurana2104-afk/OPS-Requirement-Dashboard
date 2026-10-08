@@ -1,0 +1,768 @@
+.jas-page {
+  min-height: 100vh;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 28px 32px 40px;
+  background: #f6f8fb;
+  color: #172033;
+}
+
+.jas-header {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 28px 30px;
+  background: #fffef0;
+  border: 1px solid #e5e9f0;
+  border-radius: 16px;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: center;
+}
+
+.jas-eyebrow {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.jas-header h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(26px, 3vw, 38px);
+  line-height: 1.15;
+  font-weight: 700;
+  color: #172033;
+}
+
+.jas-header p {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.jas-header-actions,
+.jas-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.jas-primary-button,
+.jas-secondary-button {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: .2s ease;
+}
+
+.jas-primary-button {
+  border: 1px solid #5b21d6;
+  background: #5b21d6;
+  color: #fff;
+}
+
+.jas-primary-button:hover:not(:disabled) {
+  background: #4c1db4;
+  transform: translateY(-1px);
+}
+
+.jas-secondary-button {
+  border: 1px solid #d7dce6;
+  background: #fff;
+  color: #334155;
+}
+
+.jas-secondary-button:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.jas-primary-button:disabled,
+.jas-secondary-button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.jas-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.jas-stats > div {
+  min-height: 84px;
+  padding: 18px 20px;
+  box-sizing: border-box;
+  border: 1px solid #e5e9f0;
+  border-radius: 14px;
+  background: #fffef0;
+  box-shadow: 0 3px 14px rgba(15, 23, 42, .045);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 7px;
+}
+
+.jas-stats span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.jas-stats strong {
+  color: #172033;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 24px;
+}
+
+.jas-card {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid #e5e9f0;
+  border-radius: 16px;
+  background: #fffef0;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, .055);
+}
+
+.jas-toolbar {
+  padding: 20px 22px;
+  border-bottom: 1px solid #e5e9f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.jas-toolbar h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 19px;
+}
+
+.jas-toolbar p {
+  margin: 5px 0 0;
+  color: #7b8496;
+  font-size: 12px;
+}
+
+.jas-toolbar input {
+  width: min(310px, 100%);
+  height: 40px;
+  padding: 0 13px;
+  border: 1px solid #dfe4ec;
+  border-radius: 9px;
+  background: #fff;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.jas-toolbar input:focus,
+.jas-modal input:focus,
+.jas-modal select:focus,
+.jas-modal textarea:focus {
+  border-color: #7c5ce6;
+  box-shadow: 0 0 0 3px rgba(124, 92, 230, .12);
+}
+
+.jas-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.jas-table-wrap table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+}
+
+.jas-table-wrap th,
+.jas-table-wrap td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #eceff4;
+  text-align: left;
+  vertical-align: middle;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.jas-table-wrap th {
+  color: #475569;
+  background: #fffdf0;
+  font-weight: 700;
+}
+
+.jas-table-wrap td {
+  color: #334155;
+}
+
+.jas-table-wrap tbody tr:hover {
+  background: rgba(255,255,255,.6);
+}
+
+.jas-empty {
+  padding: 46px 20px !important;
+  text-align: center !important;
+  color: #94a3b8 !important;
+}
+
+.jas-badge {
+  display: inline-flex;
+  min-width: 54px;
+  justify-content: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.jas-badge.served {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.jas-badge.regret {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.jas-followup-cell {
+  min-width: 115px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.jas-followup-cell strong {
+  color: #334155;
+}
+
+.jas-decision {
+  width: fit-content;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.jas-decision.accepted {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.jas-decision.declined {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.jas-decision-buttons {
+  display: flex;
+  gap: 5px;
+}
+
+.jas-decision-buttons button,
+.jas-actions button {
+  border: 1px solid #d8ddea;
+  border-radius: 6px;
+  background: #fff;
+  color: #475569;
+  padding: 5px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.jas-decision-buttons button:hover,
+.jas-actions button:hover {
+  border-color: #8b75e7;
+  color: #5b21d6;
+}
+
+.jas-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* Modal */
+
+.jas-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  padding: 24px;
+  box-sizing: border-box;
+  background: rgba(15, 23, 42, .45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+}
+
+.jas-modal {
+  width: min(920px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  padding: 22px;
+  box-sizing: border-box;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .25);
+}
+
+.jas-modal-bulk {
+  width: min(1120px, 100%);
+}
+
+.jas-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.jas-modal-header h3 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 22px;
+}
+
+.jas-modal-header span {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.jas-modal-header > button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #64748b;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.jas-entry-switch {
+  display: flex;
+  gap: 8px;
+  padding: 5px;
+  margin-bottom: 18px;
+  border-radius: 10px;
+  background: #f1f3f8;
+}
+
+.jas-entry-switch button {
+  flex: 1;
+  min-height: 38px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #64748b;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.jas-entry-switch button.active {
+  background: #fff;
+  color: #5b21d6;
+  box-shadow: 0 2px 7px rgba(15, 23, 42, .08);
+}
+
+.jas-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.jas-form-grid label,
+.jas-bulk-common-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.jas-form-grid input,
+.jas-form-grid select,
+.jas-bulk-common-panel input,
+.jas-bulk-common-panel select,
+.jas-bulk-options input {
+  width: 100%;
+  height: 40px;
+  box-sizing: border-box;
+  padding: 0 11px;
+  border: 1px solid #dbe1ea;
+  border-radius: 8px;
+  background: #fff;
+  color: #172033;
+  outline: none;
+}
+
+/* Bulk */
+
+.jas-bulk-intro {
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  border: 1px solid #e3dcff;
+  border-radius: 10px;
+  background: #f8f5ff;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.jas-bulk-intro strong {
+  color: #4c1d95;
+  font-size: 13px;
+}
+
+.jas-bulk-intro span {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.jas-bulk-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr);
+  gap: 18px;
+}
+
+.jas-bulk-input-panel,
+.jas-bulk-common-panel {
+  padding: 16px;
+  border: 1px solid #e5e9f0;
+  border-radius: 12px;
+  background: #fbfcfe;
+}
+
+.jas-bulk-label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.jas-bulk-label textarea {
+  width: 100%;
+  min-height: 270px;
+  box-sizing: border-box;
+  padding: 12px;
+  resize: vertical;
+  border: 1px solid #dbe1ea;
+  border-radius: 9px;
+  background: #fff;
+  color: #172033;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  outline: none;
+}
+
+.jas-bulk-options {
+  margin-top: 12px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.jas-bulk-options label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.jas-bulk-options input {
+  width: 120px;
+}
+
+.jas-bulk-count {
+  padding-bottom: 9px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.jas-bulk-count strong {
+  margin-left: 5px;
+  color: #5b21d6;
+  font-size: 15px;
+}
+
+.jas-bulk-errors {
+  margin-top: 12px;
+  max-height: 100px;
+  overflow: auto;
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: #be123c;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.jas-bulk-panel-title {
+  margin-bottom: 12px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.jas-bulk-common-panel {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 11px;
+}
+
+.jas-bulk-preview {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid #e5e9f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.jas-bulk-preview > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.jas-bulk-preview > div:first-child strong {
+  color: #334155;
+  font-size: 12px;
+}
+
+.jas-bulk-preview > div:first-child span {
+  color: #64748b;
+  font-size: 10px;
+}
+
+.jas-bulk-preview p {
+  margin: 12px 0 0;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.jas-preview-list {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.jas-preview-list > div {
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid #edf0f4;
+  border-radius: 7px;
+  background: #fafbfc;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 7px;
+  align-items: center;
+  font-size: 10px;
+}
+
+.jas-preview-list > div span:first-child {
+  color: #94a3b8;
+}
+
+.jas-preview-list > div strong {
+  color: #334155;
+}
+
+.jas-preview-list > div span:last-child {
+  color: #64748b;
+}
+
+.jas-preview-list small {
+  grid-column: 1 / -1;
+  color: #64748b;
+  font-size: 10px;
+}
+
+.jas-bulk-message {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.jas-bulk-message.success {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.jas-bulk-message.error {
+  color: #be123c;
+  background: #fff1f2;
+}
+
+.jas-modal-actions {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #edf0f4;
+}
+
+/* Responsive */
+
+@media (max-width: 1000px) {
+  .jas-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .jas-bulk-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .jas-preview-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .jas-page {
+    padding: 16px;
+  }
+
+  .jas-header {
+    padding: 22px 20px;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .jas-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .jas-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .jas-toolbar input {
+    width: 100%;
+  }
+
+  .jas-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .jas-modal-backdrop {
+    padding: 12px;
+  }
+
+  .jas-modal {
+    max-height: calc(100vh - 24px);
+    padding: 16px;
+  }
+}
+
+@media (max-width: 520px) {
+  .jas-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .jas-preview-list {
+    grid-template-columns: 1fr;
+  }
+
+  .jas-entry-switch {
+    flex-direction: column;
+  }
+
+  .jas-bulk-options {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+
+/* Bulk Date + Time source-data emphasis */
+.jas-bulk-label textarea {
+  tab-size: 4;
+  font-variant-numeric: tabular-nums;
+}
+
+.jas-bulk-errors {
+  white-space: pre-wrap;
+}
+
+.jas-bulk-message {
+  line-height: 1.5;
+}
+
+
+/* Bulk-created records must remain visible in the tracker below the form. */
+.jas-page {
+  overflow-x: hidden;
+}
+
+.jas-card {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.jas-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+
+.jas-table-wrap table {
+  min-width: 1800px;
+}
+
+.jas-modal-backdrop {
+  overflow-y: auto;
+  align-items: flex-start;
+  padding: 24px;
+}
+
+.jas-modal {
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.jas-modal-bulk {
+  max-height: calc(100vh - 48px);
+}
+
+.jas-preview-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .jas-modal-backdrop {
+    padding: 12px;
+  }
+
+  .jas-modal,
+  .jas-modal-bulk {
+    max-height: calc(100vh - 24px);
+  }
+}

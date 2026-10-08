@@ -178,6 +178,27 @@ const parseExcelDate = (value) => {
     }
   }
 
+  /*
+    Preserve the calendar date entered in Create Task.
+    If the backend returns an ISO datetime (for example
+    2026-10-05T00:00:00.000Z), do not let browser timezone
+    conversion change the displayed day. Read the YYYY-MM-DD
+    portion directly as a local calendar date.
+  */
+  match = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[T\s].*)?$/);
+
+  if (match) {
+    const year = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10);
+    const day = parseInt(match[3], 10);
+    const date = new Date(year, month - 1, day);
+
+    if (!Number.isNaN(date.getTime())) {
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+  }
+
   const fallback = new Date(text);
 
   if (!Number.isNaN(fallback.getTime())) {
@@ -280,8 +301,8 @@ const formatTime12Hour = (value) => {
     Follow-Up 4 = Follow-Up 3 + 5 days
     Follow-Up 5 = Follow-Up 4 + 5 days
 
-  Special Requirement Name schedule:
-    If Requirement Name contains HCL, EXL, BNP, LTM or UCB:
+  Special Client Name schedule:
+    If Client Name contains HCL, EXL, BNP, LTM or UCB:
     Follow-Up 1 = original requirement date + 3 days
     Follow-Up 2 = Follow-Up 1 + 4 days
     Follow-Up 3 = Follow-Up 2 + 4 days
@@ -328,7 +349,7 @@ const FOLLOW_UP_CONFIG = [
   },
 ];
 
-const SPECIAL_REQUIREMENT_KEYWORDS = [
+const SPECIAL_CLIENT_KEYWORDS = [
   "HCL",
   "EXL",
   "BNP",
@@ -343,12 +364,12 @@ const SPECIAL_REQUIREMENT_KEYWORDS = [
     "LTM-UCB Program"   -> special
   Matching is case-insensitive.
 */
-const isSpecialRequirement = (requirementName) => {
-  const text = String(requirementName || "").trim();
+const isSpecialClient = (clientName) => {
+  const text = String(clientName || "").trim();
 
   if (!text) return false;
 
-  return SPECIAL_REQUIREMENT_KEYWORDS.some((keyword) =>
+  return SPECIAL_CLIENT_KEYWORDS.some((keyword) =>
     new RegExp(`\\b${keyword}\\b`, "i").test(text)
   );
 };
@@ -390,13 +411,13 @@ const moveToNextWorkingDay = (date) => {
 */
 const getWorkingDayFollowUpSchedule = (
   value,
-  requirementName = ""
+  clientName = ""
 ) => {
   const baseDate = parseExcelDate(value);
 
   if (!baseDate) return {};
 
-  const special = isSpecialRequirement(requirementName);
+  const special = isSpecialClient(clientName);
 
   let previousFollowUpDate = new Date(baseDate);
   previousFollowUpDate.setHours(0, 0, 0, 0);
@@ -432,11 +453,11 @@ const getWorkingDayFollowUpSchedule = (
 const getFollowUpDateObject = (
   value,
   followUpNumber,
-  requirementName = ""
+  clientName = ""
 ) => {
   const schedule = getWorkingDayFollowUpSchedule(
     value,
-    requirementName
+    clientName
   );
 
   return schedule[followUpNumber] || null;
@@ -445,12 +466,12 @@ const getFollowUpDateObject = (
 const getFollowUpDate = (
   value,
   followUpNumber,
-  requirementName = ""
+  clientName = ""
 ) => {
   const date = getFollowUpDateObject(
     value,
     followUpNumber,
-    requirementName
+    clientName
   );
 
   if (!date) return "—";
@@ -884,31 +905,31 @@ export default function RequirementDashboard({
     const followUp1 = getFollowUpDate(
       form.clientProposalSharedDate,
       1,
-      form.requirementName
+      form.clientName
     );
 
     const followUp2 = getFollowUpDate(
       form.clientProposalSharedDate,
       2,
-      form.requirementName
+      form.clientName
     );
 
     const followUp3 = getFollowUpDate(
       form.clientProposalSharedDate,
       3,
-      form.requirementName
+      form.clientName
     );
 
     const followUp4 = getFollowUpDate(
       form.clientProposalSharedDate,
       4,
-      form.requirementName
+      form.clientName
     );
 
     const followUp5 = getFollowUpDate(
       form.clientProposalSharedDate,
       5,
-      form.requirementName
+      form.clientName
     );
 
     try {
@@ -1013,6 +1034,12 @@ export default function RequirementDashboard({
           );
         }
 
+        const savedUpdatedRequirement =
+          data?.requirement ||
+          data?.data ||
+          data?.row ||
+          {};
+
         setLocalRows((previous) =>
           previous.map((row) => {
             const rowId =
@@ -1021,7 +1048,19 @@ export default function RequirementDashboard({
               row._id;
 
             return String(rowId) === String(requirementId)
-              ? updatedRequirement
+              ? {
+                  ...row,
+                  ...updatedRequirement,
+                  ...savedUpdatedRequirement,
+                  id:
+                    savedUpdatedRequirement?.id ||
+                    row.id ||
+                    requirementId,
+                  requirementId:
+                    savedUpdatedRequirement?.requirementId ||
+                    row.requirementId ||
+                    requirementId,
+                }
               : row;
           })
         );
@@ -1254,12 +1293,20 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
 
       setLocalRows((previous) =>
         previous.filter((row) => {
-          const rowId =
-            row.id ||
-            row.requirementId ||
-            row._id;
+          const rowIds = [
+            row.id,
+            row.requirementId,
+            row._id,
+          ]
+            .filter(
+              (value) =>
+                value !== null &&
+                value !== undefined &&
+                value !== ""
+            )
+            .map(String);
 
-          return String(rowId) !== String(requirementId);
+          return !rowIds.includes(String(requirementId));
         })
       );
 
@@ -1267,7 +1314,7 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
       setFollowUpStatuses((previous) => {
         const updated = { ...previous };
 
-        [1, 2, 3].forEach((number) => {
+        [1, 2, 3, 4, 5].forEach((number) => {
           delete updated[
             `${deleteTarget.sNo}-followup-${number}`
           ];
@@ -1303,105 +1350,6 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
      AI COPILOT
   ======================================================= */
 
-  const buildLocalCopilotAnswer = (question) => {
-    const q = String(question || "").trim().toLowerCase();
-    const total = localRows.length;
-
-    const served = localRows.filter(
-      (row) => String(row.requirementStatus || "").toLowerCase() === "served"
-    ).length;
-
-    const regret = localRows.filter(
-      (row) => String(row.requirementStatus || "").toLowerCase() === "regret"
-    ).length;
-
-    const evaluationYes = localRows.filter(
-      (row) => String(row.evaluationCallStatus || "").toLowerCase() === "yes"
-    ).length;
-
-    const clients = new Set(
-      localRows
-        .map((row) => String(row.clientName || "").trim())
-        .filter(Boolean)
-    );
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const dueToday = [];
-    const overdue = [];
-
-    localRows.forEach((row) => {
-      FOLLOW_UP_CONFIG.forEach((config) => {
-        const date = getFollowUpDateObject(
-          row.clientProposalSharedDate,
-          config.number,
-          row.requirementName
-        );
-
-        if (!date) return;
-
-        const status = getFollowUpStatus(row, config.number);
-        if (status === "Accepted") return;
-
-        const item = {
-          number: config.number,
-          date,
-          requirement: row.requirementName || "Requirement",
-          client: row.clientName || "—",
-          ops: row.assignedOpsPerson || "—",
-        };
-
-        const time = date.getTime();
-        if (time === today.getTime()) dueToday.push(item);
-        if (time < today.getTime()) overdue.push(item);
-      });
-    });
-
-    if (q.includes("total") && (q.includes("requirement") || q.includes("kitni"))) {
-      return `Total requirements: ${total}. Served: ${served}. Regret: ${regret}.`;
-    }
-
-    if (q.includes("served") || q.includes("regret")) {
-      return `Served: ${served} | Regret: ${regret} | Total: ${total}.`;
-    }
-
-    if (q.includes("evaluation")) {
-      return `Evaluation calls marked Yes: ${evaluationYes}.`;
-    }
-
-    if (q.includes("client")) {
-      if (!clients.size) return "No client names are available in the loaded requirements.";
-      return `Total unique clients: ${clients.size}. Clients: ${Array.from(clients).join(", ")}.`;
-    }
-
-    if (q.includes("follow") || q.includes("aaj")) {
-      if (dueToday.length === 0 && overdue.length === 0) {
-        return "There are no pending follow-ups due today or overdue.";
-      }
-
-      const todayText = dueToday.length
-        ? `Today (${dueToday.length}): ${dueToday
-            .map((item) => `F${item.number} - ${item.requirement} (${item.client})`)
-            .join("; ")}`
-        : "Today: none";
-
-      const overdueText = overdue.length
-        ? `Overdue (${overdue.length}): ${overdue
-            .map((item) => `F${item.number} - ${item.requirement} (${item.client})`)
-            .join("; ")}`
-        : "Overdue: none";
-
-      return `${todayText}. ${overdueText}.`;
-    }
-
-    if (q.includes("summary") || q.includes("important") || q.includes("task")) {
-      return `Dashboard summary: ${total} requirements, ${served} Served, ${regret} Regret, ${evaluationYes} evaluation calls marked Yes, and ${clients.size} unique clients. Pending follow-ups due today: ${dueToday.length}; overdue: ${overdue.length}.`;
-    }
-
-    return `I can help with your live dashboard. Current data: ${total} requirements, ${served} Served, ${regret} Regret, ${evaluationYes} evaluation calls, and ${clients.size} unique clients. Try asking about requirements, follow-ups, clients, evaluation calls, or today's summary.`;
-  };
-
   const askCopilot = async (
     question = copilotQuestion
   ) => {
@@ -1414,50 +1362,46 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
     setCopilotAnswer("");
 
     try {
-      let answer = "";
+      const response = await fetch(
+        `${apiBaseUrl}/copilot`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            question: text,
+          }),
+        }
+      );
+
+      let data = {};
 
       try {
-        const response = await fetch(
-          `${apiBaseUrl}/copilot`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-            },
-            body: JSON.stringify({
-              question: text,
-            }),
-          }
-        );
+        data = await response.json();
+      } catch {
+        data = {};
+      }
 
-        let data = {};
-
-        try {
-          data = await response.json();
-        } catch {
-          data = {};
-        }
-
-        if (response.ok) {
-          answer =
-            data?.answer ||
-            data?.response ||
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
             data?.message ||
-            data?.result ||
-            "";
-        }
-      } catch (backendError) {
-        console.warn(
-          "AI Copilot backend unavailable. Using live dashboard fallback.",
-          backendError
+            `AI Copilot request failed (${response.status})`
         );
       }
 
-      // The dashboard remains usable even if the backend /copilot route
-      // is missing, offline, or returns an error.
+      const answer =
+        data?.answer ||
+        data?.response ||
+        data?.message ||
+        data?.result ||
+        "";
+
       if (!answer) {
-        answer = buildLocalCopilotAnswer(text);
+        throw new Error(
+          "AI Copilot returned an empty response."
+        );
       }
 
       setCopilotAnswer(String(answer));
@@ -1470,7 +1414,7 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
 
       setCopilotError(
         error?.message ||
-          "Unable to generate an AI Copilot answer."
+          "Unable to connect with AI Copilot."
       );
     } finally {
       setCopilotLoading(false);
@@ -1529,7 +1473,7 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
           return getFollowUpDate(
             row.clientProposalSharedDate,
             followUpNumber,
-            row.requirementName
+            row.clientName
           )
             .toLowerCase()
             .includes(searchValue);
@@ -1554,13 +1498,6 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
         ).toLowerCase() === "served"
     ).length;
 
-    const regret = localRows.filter(
-      (row) =>
-        String(
-          row.requirementStatus || ""
-        ).toLowerCase() === "regret"
-    ).length;
-
     const evaluationYes = localRows.filter(
       (row) =>
         String(
@@ -1573,28 +1510,16 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
         getFollowUpDateObject(
           row.clientProposalSharedDate,
           config.number,
-          row.requirementName
+          row.clientName
         )
       )
     ).length;
 
-    const clients = new Set(
-      localRows
-        .map((row) =>
-          String(
-            row.clientName || ""
-          ).trim()
-        )
-        .filter(Boolean)
-    ).size;
-
     return {
       total: localRows.length,
       served,
-      regret,
       evaluationYes,
       followUps,
-      clients,
     };
   }, [localRows]);
 
@@ -1610,7 +1535,7 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
         const date = getFollowUpDateObject(
           row.clientProposalSharedDate,
           config.number,
-          row.requirementName
+          row.clientName
         );
 
         if (!date) return;
@@ -1624,7 +1549,7 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
           dateText: getFollowUpDate(
             row.clientProposalSharedDate,
             config.number,
-            row.requirementName
+            row.clientName
           ),
           status: getFollowUpStatus(
             row,
@@ -1771,7 +1696,7 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
             {getFollowUpDate(
               row.clientProposalSharedDate,
               number,
-              row.requirementName
+              row.clientName
             )}
           </div>
 
@@ -2287,14 +2212,6 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
             </div>
           </div>
 
-          <div className="stat-card cyan">
-            <div className="stat-icon">♙</div>
-
-            <div>
-              <span>Total Clients</span>
-              <strong>{stats.clients}</strong>
-            </div>
-          </div>
         </section>
 
         {/* TABLE */}
@@ -2842,7 +2759,7 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
                           {getFollowUpDate(
                             requirementForm.clientProposalSharedDate,
                             number,
-                            requirementForm.requirementName
+                            requirementForm.clientName
                           )}
                         </strong>
                       </div>

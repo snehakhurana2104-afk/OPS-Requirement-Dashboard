@@ -5,12 +5,19 @@ import React, {
 } from "react";
 
 import RequirementDashboard from "./RequirementDashboard";
+import Sidebar from "./Sidebar";
+import FollowUpsJAS2026 from "./FollowUpsJAS2026";
+
+import "./App.css";
 
 const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL ||
   "http://localhost:5000/api";
 
 function App() {
+  const [activePage, setActivePage] =
+    useState("dashboard");
+
   const [requirementRows, setRequirementRows] =
     useState([]);
 
@@ -125,13 +132,30 @@ function App() {
   }, [loadRequirements]);
 
   return (
-    <RequirementDashboard
-      rows={requirementRows}
-      onRefresh={loadRequirements}
-      loading={loading}
-      lastUpdated={lastUpdated}
-      apiBaseUrl={API_BASE_URL}
-    />
+    <div className="app-shell">
+
+      <Sidebar
+        activePage={activePage}
+        onNavigate={setActivePage}
+      />
+
+      <main className="app-main">
+
+        {activePage === "dashboard" ? (
+          <RequirementDashboard
+            rows={requirementRows}
+            onRefresh={loadRequirements}
+            loading={loading}
+            lastUpdated={lastUpdated}
+            apiBaseUrl={API_BASE_URL}
+          />
+        ) : (
+          <FollowUpsJAS2026 />
+        )}
+
+      </main>
+
+    </div>
   );
 }
 
