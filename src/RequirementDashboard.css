@@ -3126,3 +3126,40 @@ button:disabled { cursor: not-allowed; opacity: .58; }
   .edit-row-button, .delete-row-button { width: 100%; }
 }
 
+
+
+/* =========================================================
+   SEARCH + ASSIGNED OPS FILTER RESPONSIVE ALIGNMENT
+   Existing dashboard design preserved.
+========================================================= */
+.search-box {
+  min-width: 285px;
+}
+
+.dashboard-filter-controls {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dashboard-filter-group select {
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .search-box {
+    min-width: 220px;
+  }
+
+  .table-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dashboard-filter-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

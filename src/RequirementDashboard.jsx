@@ -1432,8 +1432,16 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
   ];
 
   /* =======================================================
-     SEARCH
+     SEARCH + ASSIGNED OPS FILTER
+     Search works across Client Name, Assigned OPS Person,
+     Requirement, Sales, Trainer, Status and other table data.
   ======================================================= */
+
+  const normalizeSearchText = (value) =>
+    String(value ?? "")
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, " ");
 
   const availableOpsPersons = useMemo(() => {
     const names = [
@@ -1454,62 +1462,56 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
   };
 
   const filteredRows = useMemo(() => {
-    const searchValue = search.trim().toLowerCase();
+    const searchValue = normalizeSearchText(search);
+    const selectedOps = normalizeSearchText(opsFilter);
 
     return localRows.filter((row) => {
-      /* Assigned OPS filter */
+      /* Assigned OPS Person filter */
+      const assignedOps = normalizeSearchText(
+        row.assignedOpsPerson
+      );
+
       const matchesOps =
-        opsFilter === "All" ||
-        String(row.assignedOpsPerson || "")
-          .trim()
-          .toLowerCase() === opsFilter.toLowerCase();
+        selectedOps === "all" ||
+        assignedOps === selectedOps;
 
       if (!matchesOps) return false;
 
-      /* Search filter */
+      /* No search text = show all rows matching OPS filter */
       if (!searchValue) return true;
 
-      return COLUMNS.some((column) => {
-        if (column.key === "clientProposalSharedDate") {
-          return formatDateDDMMYYYY(
-            row.clientProposalSharedDate
-          )
-            .toLowerCase()
-            .includes(searchValue);
-        }
+      /* Explicit searchable fields. This guarantees that both
+         Client Name and Assigned OPS Person are searchable. */
+      const searchableValues = [
+        row.sNo,
+        row.clientName,
+        row.assignedOpsPerson,
+        row.requirementName,
+        row.salesPerson,
+        row.trainerName,
+        row.trainerContactDetails,
+        row.requirementStatus,
+        row.evaluationCallStatus,
+        row.clientProposalSharedDate,
+        row.clientProposalSharedTime,
+        formatDateDDMMYYYY(row.clientProposalSharedDate),
+        formatTime12Hour(row.clientProposalSharedTime),
+      ];
 
-        if (column.key === "clientProposalSharedTime") {
-          return formatTime12Hour(
-            row.clientProposalSharedTime
-          )
-            .toLowerCase()
-            .includes(searchValue);
-        }
-
-        if (
-          column.key === "followUp1" ||
-          column.key === "followUp2" ||
-          column.key === "followUp3" ||
-          column.key === "followUp4" ||
-          column.key === "followUp5"
-        ) {
-          const followUpNumber = Number(
-            column.key.replace("followUp", "")
-          );
-
-          return getFollowUpDate(
+      /* Add all five calculated follow-up dates to search. */
+      for (let number = 1; number <= 5; number += 1) {
+        searchableValues.push(
+          getFollowUpDate(
             row.clientProposalSharedDate,
-            followUpNumber,
+            number,
             row.clientName
           )
-            .toLowerCase()
-            .includes(searchValue);
-        }
+        );
+      }
 
-        return String(row[column.key] ?? "")
-          .toLowerCase()
-          .includes(searchValue);
-      });
+      return searchableValues.some((value) =>
+        normalizeSearchText(value).includes(searchValue)
+      );
     });
   }, [localRows, search, opsFilter]);
 
@@ -1830,7 +1832,7 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
 
             <input
               type="text"
-              placeholder="Search S.No, Client Name, Requirement..."
+              placeholder="Search Client Name, Assigned OPS, Requirement, Sales, Trainer..."
               value={search}
               onChange={(e) =>
                 setSearch(e.target.value)
