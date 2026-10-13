@@ -1462,58 +1462,67 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
   };
 
   const filteredRows = useMemo(() => {
-    const searchValue = normalizeSearchText(search);
-    const selectedOps = normalizeSearchText(opsFilter);
+    const searchValue = search.trim().toLocaleLowerCase();
 
-    return localRows.filter((row) => {
-      /* Assigned OPS Person filter */
-      const assignedOps = normalizeSearchText(
-        row.assignedOpsPerson
-      );
+    // Case-insensitive search across displayed values, formatted dates/times,
+    // calculated follow-up dates, and additional backend fields.
+    const matchingRows = !searchValue
+      ? [...localRows]
+      : localRows.filter((row) => {
+          const searchableValues = COLUMNS.map((column) => {
+            if (column.key === "clientProposalSharedDate") {
+              return formatDateDDMMYYYY(row.clientProposalSharedDate);
+            }
+            if (column.key === "clientProposalSharedTime") {
+              return formatTime12Hour(row.clientProposalSharedTime);
+            }
+            if (/^followUp[1-5]$/.test(column.key)) {
+              const followUpNumber = Number(column.key.replace("followUp", ""));
+              return getFollowUpDate(row.clientProposalSharedDate, followUpNumber, row.requirementName);
+            }
+            return row[column.key];
+          });
+          searchableValues.push(...Object.values(row));
+          return searchableValues.some((value) =>
+            String(value ?? "").toLocaleLowerCase().includes(searchValue)
+          );
+        });
 
-      const matchesOps =
-        selectedOps === "all" ||
-        assignedOps === selectedOps;
-
-      if (!matchesOps) return false;
-
-      /* No search text = show all rows matching OPS filter */
-      if (!searchValue) return true;
-
-      /* Explicit searchable fields. This guarantees that both
-         Client Name and Assigned OPS Person are searchable. */
-      const searchableValues = [
-        row.sNo,
-        row.clientName,
-        row.assignedOpsPerson,
-        row.requirementName,
-        row.salesPerson,
-        row.trainerName,
-        row.trainerContactDetails,
-        row.requirementStatus,
-        row.evaluationCallStatus,
-        row.clientProposalSharedDate,
-        row.clientProposalSharedTime,
-        formatDateDDMMYYYY(row.clientProposalSharedDate),
-        formatTime12Hour(row.clientProposalSharedTime),
-      ];
-
-      /* Add all five calculated follow-up dates to search. */
-      for (let number = 1; number <= 5; number += 1) {
-        searchableValues.push(
-          getFollowUpDate(
-            row.clientProposalSharedDate,
-            number,
-            row.clientName
-          )
-        );
+    const getTimeMinutes = (value) => {
+      if (value === null || value === undefined || String(value).trim() === "") return Number.MAX_SAFE_INTEGER;
+      if (typeof value === "number" && value >= 0 && value < 1) return Math.round(value * 1440);
+      const text = String(value).trim();
+      let match = text.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+      if (match) {
+        let hour = Number(match[1]) % 12;
+        if (match[3].toUpperCase() === "PM") hour += 12;
+        return hour * 60 + Number(match[2]);
       }
+      match = text.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+      if (match) {
+        const hour = Number(match[1]);
+        const minute = Number(match[2]);
+        if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) return hour * 60 + minute;
+      }
+      const numeric = Number(text);
+      if (Number.isFinite(numeric) && numeric >= 0 && numeric < 1) return Math.round(numeric * 1440);
+      return Number.MAX_SAFE_INTEGER;
+    };
 
-      return searchableValues.some((value) =>
-        normalizeSearchText(value).includes(searchValue)
-      );
-    });
-  }, [localRows, search, opsFilter]);
+    // Chronological order: earliest date first, then earliest time on that date.
+    return matchingRows
+      .map((row, originalIndex) => ({ row, originalIndex, date: parseExcelDate(row.clientProposalSharedDate), time: getTimeMinutes(row.clientProposalSharedTime) }))
+      .sort((a, b) => {
+        if (a.date && b.date) {
+          const dateDifference = a.date.getTime() - b.date.getTime();
+          if (dateDifference !== 0) return dateDifference;
+        } else if (a.date && !b.date) return -1;
+        else if (!a.date && b.date) return 1;
+        const timeDifference = a.time - b.time;
+        return timeDifference !== 0 ? timeDifference : a.originalIndex - b.originalIndex;
+      })
+      .map((item) => item.row);
+  }, [localRows, search]);
 
   /* =======================================================
      STATS
@@ -1621,14 +1630,10 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
         return false;
       }
 
-      // Future follow-ups are not notifications yet.
-      if (item.date.getTime() > today.getTime()) {
-        return false;
-      }
-
-      // Due today or overdue pending follow-ups stay visible
-      // until the corresponding follow-up is accepted.
-      return true;
+      // Only today's follow-ups are notifications. Hide both past and future dates.
+      const notificationDate = new Date(item.date);
+      notificationDate.setHours(0, 0, 0, 0);
+      return notificationDate.getTime() === today.getTime();
     });
   }, [allFollowUpNotifications]);
 
@@ -2049,7 +2054,7 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
             className="create-task-header-button"
             onClick={openCreateTask}
           >
-            ＋ Create Task
+            Create Task
           </button>
 
           {/* PROFILE */}
