@@ -1462,13 +1462,24 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
   };
 
   const filteredRows = useMemo(() => {
-    const searchValue = search.trim().toLocaleLowerCase();
+    const searchValue = normalizeSearchText(search);
+    const selectedOps = normalizeSearchText(opsFilter);
+
+    // Apply Assigned OPS filter first, then apply the text search.
+    // This makes the Assigned OPS dropdown actually filter the table.
+    const opsFilteredRows =
+      opsFilter === "All"
+        ? [...localRows]
+        : localRows.filter(
+            (row) =>
+              normalizeSearchText(row.assignedOpsPerson) === selectedOps
+          );
 
     // Case-insensitive search across displayed values, formatted dates/times,
     // calculated follow-up dates, and additional backend fields.
     const matchingRows = !searchValue
-      ? [...localRows]
-      : localRows.filter((row) => {
+      ? opsFilteredRows
+      : opsFilteredRows.filter((row) => {
           const searchableValues = COLUMNS.map((column) => {
             if (column.key === "clientProposalSharedDate") {
               return formatDateDDMMYYYY(row.clientProposalSharedDate);
@@ -1478,13 +1489,17 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
             }
             if (/^followUp[1-5]$/.test(column.key)) {
               const followUpNumber = Number(column.key.replace("followUp", ""));
-              return getFollowUpDate(row.clientProposalSharedDate, followUpNumber, row.requirementName);
+              return getFollowUpDate(
+                row.clientProposalSharedDate,
+                followUpNumber,
+                row.clientName
+              );
             }
             return row[column.key];
           });
           searchableValues.push(...Object.values(row));
           return searchableValues.some((value) =>
-            String(value ?? "").toLocaleLowerCase().includes(searchValue)
+            normalizeSearchText(value).includes(searchValue)
           );
         });
 
@@ -1522,7 +1537,7 @@ Sales Person: ${newRequirement.salesPerson || "Not Assigned"}`,
         return timeDifference !== 0 ? timeDifference : a.originalIndex - b.originalIndex;
       })
       .map((item) => item.row);
-  }, [localRows, search]);
+  }, [localRows, search, opsFilter]);
 
   /* =======================================================
      STATS
